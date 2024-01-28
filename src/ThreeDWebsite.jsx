@@ -82,9 +82,6 @@ function setupScene(font, scene, camera, renderer, containerRef) {
       size: 20,
       url: "https://devpost.com/software/svi-scheduler",
     },
-    { content: "", size: 20 },
-    { content: "", size: 20 },
-    { content: "More to come :3", size: 20 },
   ];
 
   const textMeshes = textContents.map((textObj, index) => {
@@ -94,6 +91,8 @@ function setupScene(font, scene, camera, renderer, containerRef) {
     textMesh.position.y = index * -40;
 
     scene.add(textMesh);
+    textMesh.castShadow = true;
+    textMesh.receiveShadow = true;
 
     const boundingBox = new THREE.Box3().setFromObject(textMesh);
     const dimensions = new THREE.Vector3();
@@ -149,7 +148,7 @@ function setupScene(font, scene, camera, renderer, containerRef) {
     torusKnot.rotation.x += 0.04;
     torusKnot.rotation.y += 0.04;
 
-    //bgMaterial.uniforms.time.value = time / 1000;
+    //bgMaterial.uniforms.time.value = time / 8000;
 
     controls.update();
 
@@ -171,30 +170,35 @@ function background(scene) {
       }
     `,
     fragmentShader: `
-    uniform float time;
-    uniform vec2 resolution;
-    uniform vec2 rippleCenter; // Center of the ripple
+precision mediump float;
 
-    void main() {
+uniform float time;
+uniform vec2 resolution;
+
+void main() {
     vec2 uv = gl_FragCoord.xy / resolution.xy;
-    float distance = distance(uv, rippleCenter);
-    float rippleRadius = time * 0.5;
-    float strength = max(0.0, 1.0 - distance / rippleRadius);
-    float rippleFactor = 1.0 - strength * strength;
 
-    // Use sine wave to alternate between blue and white
-    float frequency = 2.0; // Adjust frequency to control the speed of alternation
-    float sineWave = 0.5 + 0.5 * sin(time * frequency); // Sine wave oscillating between 0 and 1
+    // Center the coordinate system
+    uv -= 0.5;
 
-    vec3 blueColor = vec3(0.5, 0.7, 1.0);
-    vec3 whiteColor = vec3(1.0);
-    vec3 color = mix(whiteColor, blueColor, sineWave); // Interpolate between white and blue based on the sine wave
+    // Rotate the coordinate system
+    float angle = atan(uv.y, uv.x);
+    float radius = length(uv);
+    angle += time * 0.5;
+    uv = vec2(cos(angle), sin(angle)) * radius;
 
-    // Apply ripple factor to the color
-    color *= rippleFactor;
+    // Add some noise for texture
+    float noise = sin(uv.x * 10.0 + time * 5.0) * sin(uv.y * 10.0 + time * 5.0);
+    
+    // Color gradient
+    vec3 color = vec3(0.5 + 0.5 * sin(time), 0.5 + 0.5 * sin(time + 2.0), 0.5 + 0.5 * sin(time + 4.0));
 
-    gl_FragColor = vec4(color, 1.0);
-    }
+    // Combine color with noise
+    color += vec3(noise * 0.1);
+
+    // Output final color
+    gl_FragColor = vec4(color, 0.4);
+}
 
     `,
     uniforms: {
